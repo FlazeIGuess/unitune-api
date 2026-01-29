@@ -96,11 +96,13 @@ def _process_music_link(music_url):
     if platform == 'spotify':
         metadata = spotify_extractor.get_track_metadata(track_id)
     elif platform == 'tidal':
-        # Use official TIDAL API
-        metadata = tidal_extractor.get_track_metadata(track_id)
-        # If official API fails, fallback to universal extractor
-        if not metadata:
-            metadata = universal_extractor.extract_from_tidal(track_id)
+        # TIDAL as input is not supported due to API limitations
+        # TIDAL's public API requires authentication and our credentials
+        # don't have the required access tier for track metadata
+        return ResponseBuilder.build_error_response(
+            'TIDAL URLs are currently not supported as input due to API limitations. Please use Spotify, Deezer, or YouTube URLs instead.',
+            400
+        )
     elif platform == 'deezer':
         metadata = universal_extractor.extract_from_deezer(track_id)
     elif platform == 'youtube':
@@ -114,7 +116,7 @@ def _process_music_link(music_url):
     else:
         # Apple Music, Amazon Music don't have public APIs
         return ResponseBuilder.build_error_response(
-            f'{platform} URLs are not supported as input. Please use Spotify, TIDAL, or Deezer URLs.',
+            f'{platform} URLs are not supported as input. Please use Spotify, Deezer, or YouTube URLs.',
             400
         )
     
