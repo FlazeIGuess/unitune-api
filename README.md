@@ -1,239 +1,260 @@
-# UniTune Music Link API
+# UniTune API
 
-Self-hosted music link conversion API - Alternative to Odesli/SongLink.
+Backend API service for converting music links between different streaming platforms. Built with Flask and Python.
+
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python)](https://www.python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.0.0-000000?logo=flask)](https://flask.palletsprojects.com)
+
+## Overview
+
+UniTune API provides music link conversion services, extracting metadata from various streaming platforms and generating universal links. The API supports Spotify, Apple Music, YouTube Music, Deezer, TIDAL, and Amazon Music.
 
 ## Features
 
-- 🎵 Convert music links between platforms (Spotify, Apple Music, YouTube Music, Deezer, TIDAL, Amazon Music)
-- 🚀 Fast and lightweight
-- 🔒 Privacy-focused (no tracking, minimal logging)
-- 🌍 GDPR compliant
-- 🆓 Free and open source
+- **Multi-Platform Support**: Extract metadata from 6 major music streaming services
+- **Intelligent Fallback**: Multiple extraction strategies (API, web scraping)
+- **Caching**: Reduces API calls and improves response times
+- **CORS Enabled**: Ready for web and mobile clients
+- **RESTful Design**: Clean and predictable API endpoints
 
 ## Supported Platforms
 
-### Input (Source)
-- Spotify
-- TIDAL
-- Deezer
-- YouTube/YouTube Music
+- Spotify (via official API)
+- Apple Music (via web scraping)
+- YouTube Music (via YouTube Data API)
+- Deezer (via web scraping)
+- TIDAL (via official API)
+- Amazon Music (via web scraping)
 
-### Output (Target)
-- Spotify
-- Apple Music
-- YouTube Music
-- Deezer
-- TIDAL
-- Amazon Music
+## API Endpoints
 
-## Quick Start
+### Convert Music Link
 
-### Prerequisites
+```http
+GET /v1-alpha.1/links?url={music_url}
+```
 
-- Python 3.11+
-- Spotify API credentials ([Get here](https://developer.spotify.com/dashboard))
-- YouTube API key (optional, [Get here](https://console.cloud.google.com))
-- TIDAL API credentials (optional, [Get here](https://developer.tidal.com))
+**Parameters:**
+- `url` (required): Music link from any supported platform
 
-### Installation
+**Response:**
+```json
+{
+  "entityUniqueId": "SPOTIFY::TRACK::3n3Ppam7vgaVa1iaRUc9Lp",
+  "userCountry": "US",
+  "pageUrl": "https://unitune.art/s/abc123",
+  "linksByPlatform": {
+    "spotify": {
+      "url": "https://open.spotify.com/track/...",
+      "nativeAppUriMobile": "spotify:track:..."
+    },
+    "appleMusic": {
+      "url": "https://music.apple.com/...",
+      "nativeAppUriMobile": "music://..."
+    }
+  },
+  "entitiesByUniqueId": {
+    "SPOTIFY::TRACK::3n3Ppam7vgaVa1iaRUc9Lp": {
+      "id": "3n3Ppam7vgaVa1iaRUc9Lp",
+      "type": "song",
+      "title": "Song Title",
+      "artistName": "Artist Name",
+      "thumbnailUrl": "https://...",
+      "thumbnailWidth": 640,
+      "thumbnailHeight": 640,
+      "apiProvider": "spotify"
+    }
+  }
+}
+```
 
-1. Clone the repository:
+## Installation
+
+### Requirements
+- Python 3.12 or higher
+- pip (Python package manager)
+
+### Setup
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/unitune-api.git
+# Clone the repository
+git clone https://github.com/FlazeIGuess/unitune-api.git
 cd unitune-api
-```
 
-2. Install dependencies:
-```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
-```
 
-3. Create `.env` file:
-```bash
+# Configure environment variables
 cp .env.example .env
+# Edit .env with your API keys
 ```
 
-4. Add your API credentials to `.env`:
+### Environment Variables
+
+Create a `.env` file with the following variables:
+
 ```env
+# Spotify API (Required)
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+
+# YouTube Data API v3 (Optional but recommended)
 YOUTUBE_API_KEY=your_youtube_api_key
+
+# TIDAL API (Optional)
 TIDAL_CLIENT_ID=your_tidal_client_id
 TIDAL_CLIENT_SECRET=your_tidal_client_secret
+
+# Server Configuration
+PORT=10000
+FLASK_ENV=production
+LOG_LEVEL=ERROR
 ```
 
-5. Run the server:
+### API Keys
+
+- **Spotify**: Get from [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+- **YouTube**: Get from [Google Cloud Console](https://console.cloud.google.com)
+- **TIDAL**: Get from [TIDAL Developer Portal](https://developer.tidal.com/dashboard)
+
+## Running
+
+### Development
+
 ```bash
 python app.py
 ```
 
 The API will be available at `http://localhost:10000`
 
-## API Usage
-
-### Convert a music link
+### Production
 
 ```bash
-GET /v1-alpha.1/links?url={MUSIC_URL}
-```
-
-**Example**:
-```bash
-curl "http://localhost:10000/v1-alpha.1/links?url=https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp"
-```
-
-**Response**:
-```json
-{
-  "entityUniqueId": "SPOTIFY::TRACK::3n3Ppam7vgaVa1iaRUc9Lp",
-  "userCountry": "US",
-  "pageUrl": "https://unitune.art/s/https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp",
-  "entitiesByUniqueId": {
-    "SPOTIFY::TRACK::3n3Ppam7vgaVa1iaRUc9Lp": {
-      "id": "3n3Ppam7vgaVa1iaRUc9Lp",
-      "type": "song",
-      "title": "Mr. Brightside",
-      "artistName": "The Killers",
-      "thumbnailUrl": "https://i.scdn.co/image/...",
-      "apiProvider": "spotify",
-      "platforms": ["spotify", "appleMusic", "youtubeMusic", "deezer", "tidal"]
-    }
-  },
-  "linksByPlatform": {
-    "spotify": {
-      "url": "https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp",
-      "entityUniqueId": "SPOTIFY::TRACK::3n3Ppam7vgaVa1iaRUc9Lp"
-    },
-    "appleMusic": {
-      "url": "https://music.apple.com/search?term=The+Killers+Mr.+Brightside",
-      "entityUniqueId": "APPLEMUSIC::SONG::unknown"
-    },
-    "youtubeMusic": {
-      "url": "https://music.youtube.com/watch?v=...",
-      "entityUniqueId": "YOUTUBE::VIDEO::..."
-    },
-    "deezer": {
-      "url": "https://www.deezer.com/track/2947340",
-      "entityUniqueId": "DEEZER::TRACK::2947340"
-    },
-    "tidal": {
-      "url": "https://listen.tidal.com/search?q=The%20Killers%20Mr.%20Brightside",
-      "entityUniqueId": "TIDAL::TRACK::search"
-    }
-  }
-}
-```
-
-### Health check
-
-```bash
-GET /health
-```
-
-**Response**:
-```json
-{
-  "status": "ok",
-  "version": "1.0.0",
-  "spotify_configured": true,
-  "youtube_configured": true
-}
+gunicorn app:app --bind 0.0.0.0:10000 --workers 4
 ```
 
 ## Deployment
 
-### Deploy to Render
-
-1. Create a new Web Service on [Render](https://render.com)
-2. Connect your Git repository
-3. Configure:
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn app:app`
-   - **Environment**: Python 3
-
-4. Add environment variables:
-   ```
-   SPOTIFY_CLIENT_ID=...
-   SPOTIFY_CLIENT_SECRET=...
-   YOUTUBE_API_KEY=...
-   TIDAL_CLIENT_ID=...
-   TIDAL_CLIENT_SECRET=...
-   PORT=10000
-   FLASK_ENV=production
-   LOG_LEVEL=ERROR
-   ```
-
-5. Deploy!
-
-### Deploy to Heroku
+### Heroku
 
 ```bash
+# Login to Heroku
+heroku login
+
+# Create app
 heroku create your-app-name
+
+# Set environment variables
 heroku config:set SPOTIFY_CLIENT_ID=...
 heroku config:set SPOTIFY_CLIENT_SECRET=...
 heroku config:set YOUTUBE_API_KEY=...
+
+# Deploy
 git push heroku main
+```
+
+### Render
+
+1. Create new Web Service on [Render](https://render.com)
+2. Connect your GitHub repository
+3. Set environment variables in Render dashboard
+4. Deploy
+
+### Docker
+
+```bash
+# Build image
+docker build -t unitune-api .
+
+# Run container
+docker run -p 10000:10000 --env-file .env unitune-api
 ```
 
 ## Architecture
 
 ```
-┌─────────────┐
-│   Client    │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────────────────────────┐
-│         Flask API Server            │
-├─────────────────────────────────────┤
-│  • URL Parser                       │
-│  • Platform Extractors              │
-│    - Spotify (Official API)         │
-│    - TIDAL (Official API)           │
-│    - Deezer (Public API)            │
-│    - YouTube (Official API)         │
-│  • Platform Searchers               │
-│    - Apple Music (Search)           │
-│    - Amazon Music (Search)          │
-│    - YouTube Music (Search)         │
-│    - Deezer (Search)                │
-│    - TIDAL (Search)                 │
-│  • Response Builder                 │
-└─────────────────────────────────────┘
+unitune-api/
+├── app.py                 # Flask application entry point
+├── config.py              # Configuration management
+├── extractors/            # Platform-specific metadata extractors
+│   ├── spotify.py
+│   ├── tidal.py
+│   ├── universal.py
+│   └── web_scraper.py
+├── searchers/             # Platform search implementations
+│   ├── amazon_music.py
+│   ├── apple_music.py
+│   ├── deezer.py
+│   ├── tidal.py
+│   └── youtube.py
+└── utils/                 # Utility functions
+    ├── response_builder.py
+    └── url_parser.py
 ```
 
-## TIDAL Integration Note
+## Dependencies
 
-TIDAL API has access tier limitations. The current implementation uses search links instead of direct track links due to API restrictions. This provides a good user experience with one additional click.
+- **Flask 3.0.0**: Web framework
+- **Flask-CORS 4.0.0**: Cross-origin resource sharing
+- **Requests 2.31.0**: HTTP library
+- **Spotipy 2.23.0**: Spotify API wrapper
+- **google-api-python-client 2.108.0**: YouTube API client
+- **BeautifulSoup4 4.12.3**: Web scraping
+- **Gunicorn 21.2.0**: WSGI HTTP server
 
-For more details, see [TIDAL_API_SETUP.md](TIDAL_API_SETUP.md)
+## Testing
 
-## Privacy & GDPR
+```bash
+# Run tests
+pytest
 
-- ✅ No user tracking
-- ✅ No personal data storage
-- ✅ Minimal logging (errors only)
-- ✅ No cookies
-- ✅ No analytics
+# Run with coverage
+pytest --cov=.
+```
 
-## License
+## Rate Limiting
 
-MIT License - See [LICENSE](LICENSE) file for details
+The API implements basic rate limiting:
+- Caching reduces redundant API calls
+- Spotify and YouTube APIs have their own rate limits
+- Consider implementing Redis-based rate limiting for production
+
+## Error Handling
+
+The API returns standard HTTP status codes:
+- `200 OK`: Successful request
+- `400 Bad Request`: Invalid or missing URL parameter
+- `404 Not Found`: Song not found on any platform
+- `500 Internal Server Error`: Server error
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-- 📧 Email: support@unitune.art
-- 🐛 Issues: [GitHub Issues](https://github.com/YOUR_USERNAME/unitune-api/issues)
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
 
 ## Related Projects
 
-- [UniTune App](https://github.com/YOUR_USERNAME/unitune) - Flutter mobile app
-- [UniTune Worker](https://github.com/YOUR_USERNAME/unitune-worker) - Cloudflare Worker for web interface
+- [unitune](https://github.com/FlazeIGuess/unitune) - Flutter mobile application
+- [unitune-worker](https://github.com/FlazeIGuess/unitune-worker) - Cloudflare Worker for web interface
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+
+See [LICENSE](LICENSE) for details.
+
+### Attribution Requirement
+Any use, modification, or distribution of this software must include proper attribution to the original author and project.
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/FlazeIGuess/unitune-api/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/FlazeIGuess/unitune-api/discussions)
 
 ---
 
-Made with ❤️ for music lovers
+Built with Flask and Python
