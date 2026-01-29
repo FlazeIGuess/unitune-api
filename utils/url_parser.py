@@ -28,7 +28,8 @@ class URLParser:
         ],
         'tidal': [
             r'tidal\.com/track/(\d+)',
-            r'tidal\.com/browse/track/(\d+)'
+            r'tidal\.com/browse/track/(\d+)',
+            r'listen\.tidal\.com/track/(\d+)'
         ],
         'amazonMusic': [
             r'music\.amazon\.com/.+/([A-Z0-9]+)',
