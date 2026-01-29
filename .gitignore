@@ -10,11 +10,8 @@ ENV/
 
 # Environment
 .env
-<<<<<<< HEAD
 .env.local
 .env.*.local
-=======
->>>>>>> 96fd6694e19ec7c11d21b72c7ca6cfbbad1238ec
 
 # IDE
 .vscode/
@@ -33,3 +30,7 @@ Thumbs.db
 test_*.py
 debug_*.py
 .cache
+
+# Helper scripts (local only)
+push.ps1
+*.local.ps1
