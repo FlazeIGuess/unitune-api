@@ -59,8 +59,8 @@ class TidalExtractor:
     
     def get_track_metadata(self, track_id: str) -> Optional[Dict[str, Any]]:
         """
-        Get track metadata from TIDAL
-        https://developer.tidal.com/documentation/api/api-reference
+        Get track metadata from TIDAL using track ID
+        Uses v2 API with proper JSON:API format
         
         Args:
             track_id: TIDAL track ID
@@ -71,19 +71,20 @@ class TidalExtractor:
         # Ensure we have a valid token
         if not self.access_token:
             if not self._get_access_token():
-                # Fallback to public API
-                return self._get_track_public(track_id)
+                return None
         
         try:
+            # v2 API endpoint for tracks
             url = f"{self.BASE_URL}/v2/tracks/{track_id}"
             
             headers = {
                 'Authorization': f'{self.token_type} {self.access_token}',
-                'Accept': 'application/json'
+                'Accept': 'application/vnd.api+json'
             }
             
             params = {
-                'countryCode': 'US'
+                'countryCode': 'US',
+                'include': 'artists,albums'
             }
             
             response = requests.get(url, headers=headers, params=params, timeout=10)
@@ -96,47 +97,49 @@ class TidalExtractor:
             
             if response.ok:
                 data = response.json()
-                resource = data.get('resource', {})
+                resource = data.get('data', {})
+                attributes = resource.get('attributes', {})
                 
                 # Extract metadata
-                title = resource.get('title', '')
+                title = attributes.get('title', '')
                 artist_name = ''
                 
-                # Get artist name
-                artists = resource.get('artists', [])
-                if artists:
-                    artist_name = artists[0].get('name', '')
-                
-                # Get album art
-                album = resource.get('album', {})
-                image_cover = album.get('imageCover', [])
-                thumbnail_url = None
-                if image_cover:
-                    # Get highest quality image
-                    thumbnail_url = image_cover[-1].get('url') if image_cover else None
+                # Get artist from included data
+                included = data.get('included', [])
+                for item in included:
+                    if item.get('type') == 'artists':
+                        artist_name = item.get('attributes', {}).get('name', '')
+                        break
                 
                 # Get ISRC
-                isrc = resource.get('isrc')
+                isrc = attributes.get('isrc')
+                
+                # Get album art from included albums
+                thumbnail_url = None
+                for item in included:
+                    if item.get('type') == 'albums':
+                        image_cover = item.get('attributes', {}).get('imageCover', [])
+                        if image_cover:
+                            thumbnail_url = image_cover[-1].get('url') if image_cover else None
+                        break
                 
                 return {
                     'id': track_id,
                     'title': title,
                     'artist': artist_name,
                     'isrc': isrc,
-                    'thumbnail': thumbnail_url,
+                    'thumbnailUrl': thumbnail_url,
                     'url': f"https://tidal.com/browse/track/{track_id}",
-                    'duration': resource.get('duration'),
-                    'explicit': resource.get('explicit', False)
+                    'apiProvider': 'tidal',
+                    'platforms': ['tidal']
                 }
             else:
-                print(f"TIDAL API error: {response.status_code}")
-                # Fallback to public API
-                return self._get_track_public(track_id)
+                print(f"TIDAL API error: {response.status_code} - {response.text[:200]}")
                 
         except Exception as e:
             print(f"Error getting TIDAL track: {e}")
-            # Fallback to public API
-            return self._get_track_public(track_id)
+        
+        return None
     
     def _get_track_public(self, track_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -182,7 +185,8 @@ class TidalExtractor:
     
     def search_track(self, artist: str, title: str, isrc: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Search for track on TIDAL
+        Search for track on TIDAL using v2 API
+        According to official docs: https://openapi.tidal.com/v2/searchResults/{query}/relationships/tracks
         
         Args:
             artist: Artist name
@@ -190,27 +194,64 @@ class TidalExtractor:
             isrc: ISRC code (optional, more accurate)
             
         Returns:
-            Dictionary with track metadata
+            Dictionary with track metadata including direct track link
         """
         # Ensure we have a valid token
         if not self.access_token:
             if not self._get_access_token():
-                # Fallback to public search
-                return self._search_public(artist, title, isrc)
+                return None
         
         try:
-            # Try ISRC search first (most accurate)
-            if isrc:
-                result = self._search_by_isrc(isrc)
-                if result:
-                    return result
+            # Build search query
+            query = f"{artist} {title}"
             
-            # Fallback to text search
-            return self._search_by_text(artist, title)
+            # URL encode the query - the query is part of the URL path, not a parameter
+            from urllib.parse import quote
+            encoded_query = quote(query)
             
+            # Use v2 search endpoint - query is in the URL path
+            url = f"{self.BASE_URL}/v2/searchResults/{encoded_query}/relationships/tracks"
+            
+            headers = {
+                'Authorization': f'{self.token_type} {self.access_token}',
+                'Accept': 'application/vnd.api+json'
+            }
+            
+            params = {
+                'countryCode': 'US',
+                'limit': 1
+            }
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            
+            if response.status_code == 401:
+                # Token expired, refresh
+                if self._get_access_token():
+                    headers['Authorization'] = f'{self.token_type} {self.access_token}'
+                    response = requests.get(url, headers=headers, params=params, timeout=10)
+            
+            if response.ok:
+                data = response.json()
+                tracks = data.get('data', [])
+                
+                if tracks:
+                    track = tracks[0]
+                    track_id = track.get('id')
+                    
+                    if track_id:
+                        # Return direct track link instead of search link
+                        return {
+                            'url': f"https://tidal.com/browse/track/{track_id}",
+                            'id': track_id,
+                            'is_search': False
+                        }
+            else:
+                print(f"TIDAL search error: {response.status_code} - {response.text[:200]}")
+                
         except Exception as e:
             print(f"Error searching TIDAL: {e}")
-            return self._search_public(artist, title, isrc)
+        
+        return None
     
     def _search_by_isrc(self, isrc: str) -> Optional[Dict[str, Any]]:
         """Search by ISRC using official API"""

@@ -5,3 +5,4 @@ spotipy==2.23.0
 google-api-python-client==2.108.0
 python-dotenv==1.0.0
 gunicorn==21.2.0
+beautifulsoup4==4.12.3

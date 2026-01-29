@@ -32,8 +32,10 @@ class URLParser:
             r'listen\.tidal\.com/track/(\d+)'
         ],
         'amazonMusic': [
-            r'music\.amazon\.com/.+/([A-Z0-9]+)',
-            r'amazon\.com/music/player/([A-Z0-9]+)'
+            r'music\.amazon\.com/albums/([A-Z0-9]+)',
+            r'music\.amazon\.com/tracks/([A-Z0-9]+)',
+            r'amazon\.com/music/player/albums/([A-Z0-9]+)',
+            r'amazon\.com/music/player/tracks/([A-Z0-9]+)'
         ]
     }
     

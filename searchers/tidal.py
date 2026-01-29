@@ -1,22 +1,19 @@
 """
-TIDAL Searcher - Generates direct track links using TIDAL search
+TIDAL Searcher - Generates direct track links using TIDAL API
 """
 from typing import Optional, Dict, Any
-import urllib.parse
+from extractors.tidal import TidalExtractor
 
 class TidalSearcher:
-    """Search for tracks on TIDAL using direct search links"""
+    """Search for tracks on TIDAL using official API to get direct track links"""
     
     def __init__(self):
-        pass
+        self.extractor = TidalExtractor()
     
     def search(self, artist: str, title: str, isrc: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Generate TIDAL search link that opens directly in TIDAL app/web
-        
-        TIDAL's API requires special access tiers that are not available
-        for all developer accounts. As a workaround, we generate search
-        links that open in TIDAL and show the track directly.
+        Search for track on TIDAL and return direct track link
+        Uses official TIDAL v2 API
         
         Args:
             artist: Artist name
@@ -24,15 +21,20 @@ class TidalSearcher:
             isrc: ISRC code (optional, not used currently)
             
         Returns:
-            Dictionary with TIDAL search link
+            Dictionary with TIDAL direct track link
         """
         try:
-            # Create search query
+            # Use TidalExtractor to search and get direct track link
+            result = self.extractor.search_track(artist, title, isrc)
+            
+            if result:
+                return result
+            
+            # Fallback: generate search link if API fails
+            import urllib.parse
             query = f"{artist} {title}"
             encoded_query = urllib.parse.quote(query)
             
-            # TIDAL listen.tidal.com search opens in app if installed
-            # and shows results directly
             return {
                 'url': f"https://listen.tidal.com/search?q={encoded_query}",
                 'id': 'search',
@@ -40,5 +42,5 @@ class TidalSearcher:
             }
             
         except Exception as e:
-            print(f"Error generating TIDAL link: {e}")
+            print(f"Error searching TIDAL: {e}")
             return None

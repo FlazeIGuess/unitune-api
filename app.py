@@ -10,6 +10,7 @@ from utils.response_builder import ResponseBuilder
 from extractors.spotify import SpotifyExtractor
 from extractors.tidal import TidalExtractor
 from extractors.universal import UniversalExtractor
+from extractors.web_scraper import WebScraper
 from searchers.youtube import YouTubeSearcher
 from searchers.deezer import DeezerSearcher
 from searchers.tidal import TidalSearcher
@@ -27,6 +28,7 @@ Config.validate()
 spotify_extractor = SpotifyExtractor()
 tidal_extractor = TidalExtractor()
 universal_extractor = UniversalExtractor()
+web_scraper = WebScraper()
 youtube_searcher = YouTubeSearcher()
 deezer_searcher = DeezerSearcher()
 tidal_searcher = TidalSearcher()  # Uses its own TidalExtractor instance
@@ -96,13 +98,17 @@ def _process_music_link(music_url):
     if platform == 'spotify':
         metadata = spotify_extractor.get_track_metadata(track_id)
     elif platform == 'tidal':
-        # TIDAL as input is not supported due to API limitations
-        # TIDAL's public API requires authentication and our credentials
-        # don't have the required access tier for track metadata
-        return ResponseBuilder.build_error_response(
-            'TIDAL URLs are currently not supported as input due to API limitations. Please use Spotify, Deezer, or YouTube URLs instead.',
-            400
-        )
+        # Try web scraping first (more reliable than API with limited access)
+        metadata = web_scraper.scrape_tidal(track_id)
+        if not metadata:
+            # Fallback to TIDAL API if scraping fails
+            metadata = tidal_extractor.get_track_metadata(track_id)
+    elif platform == 'appleMusic':
+        # Try web scraping for Apple Music
+        metadata = web_scraper.scrape_apple_music(track_id)
+    elif platform == 'amazonMusic':
+        # Try web scraping for Amazon Music
+        metadata = web_scraper.scrape_amazon_music(track_id)
     elif platform == 'deezer':
         metadata = universal_extractor.extract_from_deezer(track_id)
     elif platform == 'youtube':
@@ -113,12 +119,6 @@ def _process_music_link(music_url):
                 'Could not extract track info from YouTube video. The video might not be a music track.',
                 404
             )
-    else:
-        # Apple Music, Amazon Music don't have public APIs
-        return ResponseBuilder.build_error_response(
-            f'{platform} URLs are not supported as input. Please use Spotify, Deezer, or YouTube URLs.',
-            400
-        )
     
     if not metadata:
         return ResponseBuilder.build_error_response(
