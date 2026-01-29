@@ -94,15 +94,16 @@ class WebScraper:
                             thumbnail_url = img_tag['content']
                         
                         if title and artist:
-                            # Search on Spotify for full metadata + ISRC
+                            # Search on Spotify for full metadata + ISRC + Cover
                             spotify_result = self.spotify.search_track(artist, title)
                             if spotify_result:
-                                # Keep TIDAL as the source
+                                # Keep TIDAL as the source but use Spotify's cover if TIDAL has none
                                 spotify_result['url'] = url
                                 spotify_result['id'] = track_id
                                 spotify_result['apiProvider'] = 'tidal'
+                                # Use TIDAL thumbnail if available, otherwise keep Spotify's
                                 if thumbnail_url:
-                                    spotify_result['thumbnailUrl'] = thumbnail_url
+                                    spotify_result['thumbnail'] = thumbnail_url
                                 return spotify_result
                             
                             # Fallback: return basic metadata

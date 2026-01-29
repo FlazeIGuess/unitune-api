@@ -126,28 +126,56 @@ def _process_music_link(music_url):
             404
         )
     
-    # Search on all other platforms
-    links = {}
-    
-    # Always include source platform
-    links[platform] = {
-        'url': metadata['url'],
-        'entityUniqueId': f"{platform.upper()}::TRACK::{metadata['id']}"
-    }
-    
-    # Search on other platforms
+    # ALWAYS get cover from Spotify (regardless of input platform)
+    # This ensures consistent, high-quality album art
     artist = metadata['artist']
     title = metadata['title']
     isrc = metadata.get('isrc')
     
+    # Search on Spotify to get cover art
+    spotify_cover_result = spotify_extractor.search_track(artist, title, isrc)
+    if spotify_cover_result and spotify_cover_result.get('thumbnail'):
+        # Override metadata thumbnail with Spotify's cover
+        metadata['thumbnail'] = spotify_cover_result['thumbnail']
+        # Also update ISRC if we didn't have it
+        if not metadata.get('isrc') and spotify_cover_result.get('isrc'):
+            metadata['isrc'] = spotify_cover_result['isrc']
+    
+    # Search on all other platforms
+    links = {}
+    
+    # Always include source platform (but not Spotify yet, we handle it separately below)
+    if platform != 'spotify':
+        links[platform] = {
+            'url': metadata['url'],
+            'entityUniqueId': f"{platform.upper()}::TRACK::{metadata['id']}"
+        }
+    
+    # Search on other platforms
+    # Note: artist, title, isrc already defined above when getting Spotify cover
+    
     # Spotify (if not source)
     if platform != 'spotify':
-        spotify_result = spotify_extractor.search_track(artist, title, isrc)
-        if spotify_result:
+        # We already searched Spotify for the cover, reuse that result
+        if spotify_cover_result:
             links['spotify'] = {
-                'url': spotify_result['url'],
-                'entityUniqueId': f"SPOTIFY::TRACK::{spotify_result['id']}"
+                'url': spotify_cover_result['url'],
+                'entityUniqueId': f"SPOTIFY::TRACK::{spotify_cover_result['id']}"
             }
+        else:
+            # Fallback: search again if cover search failed
+            spotify_result = spotify_extractor.search_track(artist, title, isrc)
+            if spotify_result:
+                links['spotify'] = {
+                    'url': spotify_result['url'],
+                    'entityUniqueId': f"SPOTIFY::TRACK::{spotify_result['id']}"
+                }
+    else:
+        # Source is Spotify, just add it
+        links['spotify'] = {
+            'url': metadata['url'],
+            'entityUniqueId': f"SPOTIFY::TRACK::{metadata['id']}"
+        }
     
     # YouTube Music
     youtube_result = youtube_searcher.search(artist, title)
