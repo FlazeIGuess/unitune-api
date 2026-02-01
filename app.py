@@ -7,6 +7,7 @@ from flask_cors import CORS
 from config import Config
 from utils.url_parser import URLParser
 from utils.response_builder import ResponseBuilder
+from utils.link_encoder import LinkEncoder
 from extractors.spotify import SpotifyExtractor
 from extractors.tidal import TidalExtractor
 from extractors.universal import UniversalExtractor
@@ -45,22 +46,54 @@ def health_check():
         'youtube_configured': bool(Config.YOUTUBE_API_KEY)
     })
 
-@app.route('/s/<path:encoded_url>', methods=['GET'])
-def handle_share_link(encoded_url):
+@app.route('/s/<path:encoded_id>', methods=['GET'])
+def handle_share_link(encoded_id):
     """
-    Handle UniTune share links: /s/{encodedUrl}
-    Decodes the URL and returns JSON response
-    Frontend (Cloudflare Worker) handles HTML rendering
-    """
-    from urllib.parse import unquote
+    Handle UniTune share links: /s/{encodedId}
     
-    # Decode the URL
+    Supports two formats:
+    1. NEW: Base64-encoded platform:type:id (e.g., /s/dGlkYWw6dHJhY2s6MjU4NzM1NDEw)
+    2. LEGACY: URL-encoded full URL (e.g., /s/https%3A%2F%2Ftidal.com%2Ftrack%2F258735410)
+    
+    Returns JSON response. Frontend (Cloudflare Worker) handles HTML rendering.
+    """
     try:
-        decoded_url = unquote(encoded_url)
-        # Process the link and return JSON
-        return _process_music_link(decoded_url)
+        # Check if this is a legacy format (URL-encoded full URL)
+        if LinkEncoder.is_legacy_format(encoded_id):
+            # Legacy format: decode URL and process normally
+            decoded_url = LinkEncoder.decode_legacy(encoded_id)
+            if not decoded_url:
+                return ResponseBuilder.build_error_response('Invalid legacy share link format', 400)
+            return _process_music_link(decoded_url)
+        
+        # New format: decode base64 identifier
+        decoded = LinkEncoder.decode(encoded_id)
+        if not decoded:
+            return ResponseBuilder.build_error_response('Invalid share link format', 400)
+        
+        platform, link_type, track_id = decoded
+        
+        # Reconstruct URL for processing
+        # This allows us to reuse the existing _process_music_link logic
+        platform_urls = {
+            'spotify': f'https://open.spotify.com/track/{track_id}',
+            'tidal': f'https://tidal.com/track/{track_id}',
+            'appleMusic': f'https://music.apple.com/song/{track_id}',
+            'youtube': f'https://youtube.com/watch?v={track_id}',
+            'youtubeMusic': f'https://music.youtube.com/watch?v={track_id}',
+            'deezer': f'https://deezer.com/track/{track_id}',
+            'amazonMusic': f'https://music.amazon.com/tracks/{track_id}'
+        }
+        
+        reconstructed_url = platform_urls.get(platform)
+        if not reconstructed_url:
+            return ResponseBuilder.build_error_response(f'Unsupported platform: {platform}', 400)
+        
+        # Process the reconstructed URL
+        return _process_music_link(reconstructed_url)
+        
     except Exception as e:
-        return ResponseBuilder.build_error_response(f'Invalid share link: {str(e)}', 400)
+        return ResponseBuilder.build_error_response(f'Error processing share link: {str(e)}', 400)
 
 @app.route('/v1-alpha.1/links', methods=['GET'])
 def convert_link():

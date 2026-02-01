@@ -1,0 +1,15 @@
+.git
+.github
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.example
+venv
+*.md
+LICENSE
+.gitignore
+docs
+push.ps1

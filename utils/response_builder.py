@@ -23,6 +23,8 @@ class ResponseBuilder:
         Returns:
             Odesli-compatible JSON response
         """
+        from utils.link_encoder import LinkEncoder
+        
         # Build entity unique ID
         entity_id = f"{source_platform.upper()}::TRACK::{metadata.get('id', 'unknown')}"
         
@@ -51,11 +53,16 @@ class ResponseBuilder:
             if 'nativeAppUri' in link_data:
                 links_by_platform[platform]['nativeAppUriMobile'] = link_data['nativeAppUri']
         
+        # Generate new-format share URL (base64-encoded)
+        track_id = metadata.get('id', 'unknown')
+        encoded_id = LinkEncoder.encode(source_platform, track_id, 'track')
+        page_url = f"https://unitune.art/s/{encoded_id}"
+        
         # Build full response
         response = {
             'entityUniqueId': entity_id,
             'userCountry': 'US',  # Could be dynamic based on request
-            'pageUrl': f"https://unitune.art/s/{metadata.get('url', '')}",
+            'pageUrl': page_url,
             'entitiesByUniqueId': {
                 entity_id: entity
             },

@@ -14,6 +14,8 @@ UniTune API provides music link conversion services, extracting metadata from va
 
 - **Multi-Platform Support**: Extract metadata from 6 major music streaming services
 - **Intelligent Fallback**: Multiple extraction strategies (API, web scraping)
+- **Secure Share Links**: Base64-encoded links prevent phishing warnings (see [LINK_FORMAT_MIGRATION.md](LINK_FORMAT_MIGRATION.md))
+- **Backward Compatible**: Supports both new and legacy link formats
 - **Caching**: Reduces API calls and improves response times
 - **CORS Enabled**: Ready for web and mobile clients
 - **RESTful Design**: Clean and predictable API endpoints
@@ -43,7 +45,7 @@ GET /v1-alpha.1/links?url={music_url}
 {
   "entityUniqueId": "SPOTIFY::TRACK::3n3Ppam7vgaVa1iaRUc9Lp",
   "userCountry": "US",
-  "pageUrl": "https://unitune.art/s/abc123",
+  "pageUrl": "https://unitune.art/s/c3BvdGlmeTp0cmFjazozbjNQcGFtN3ZnYVZhMWlhUlVjOUxw",
   "linksByPlatform": {
     "spotify": {
       "url": "https://open.spotify.com/track/...",
@@ -68,6 +70,18 @@ GET /v1-alpha.1/links?url={music_url}
   }
 }
 ```
+
+### Share Link Endpoint
+
+```http
+GET /s/{encoded_id}
+```
+
+**Supports two formats:**
+- **New format** (Base64): `/s/dGlkYWw6dHJhY2s6MjU4NzM1NDEw` (recommended)
+- **Legacy format** (URL-encoded): `/s/https%3A%2F%2Ftidal.com%2Ftrack%2F258735410` (backward compatible)
+
+**Note:** New format prevents browser phishing warnings. See [LINK_FORMAT_MIGRATION.md](LINK_FORMAT_MIGRATION.md) for details.
 
 ## Installation
 
@@ -193,6 +207,7 @@ unitune-api/
 │   ├── tidal.py
 │   └── youtube.py
 └── utils/                 # Utility functions
+    ├── link_encoder.py    # Share link encoding/decoding
     ├── response_builder.py
     └── url_parser.py
 ```

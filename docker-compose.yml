@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  unitune-api:
+    build: .
+    container_name: unitune-api
+    restart: unless-stopped
+    ports:
+      - "10000:10000"
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=production
+      - LOG_LEVEL=ERROR
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:10000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Optional: Add volume for logs
+    # volumes:
+    #   - ./logs:/app/logs
