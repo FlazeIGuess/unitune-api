@@ -34,3 +34,4 @@ debug_*.py
 # Helper scripts (local only)
 push.ps1
 *.local.ps1
+deploy.sh

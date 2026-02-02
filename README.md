@@ -23,10 +23,17 @@ UniTune API provides music link conversion services, extracting metadata from va
 ## Supported Platforms
 
 - Spotify (via official API)
+  - Supports query parameters (e.g., `?si=...`)
+  - International URLs (e.g., `/intl-de/track/...`)
 - Apple Music (via web scraping)
+  - Multiple country codes supported
 - YouTube Music (via YouTube Data API)
+  - YouTube Shorts supported
 - Deezer (via web scraping)
+  - Country-specific URLs supported (e.g., `/de/track/...`)
 - TIDAL (via official API)
+  - Supports trailing segments (e.g., `/track/123/u`)
+  - Multiple domains (`tidal.com`, `listen.tidal.com`)
 - Amazon Music (via web scraping)
 
 ## API Endpoints

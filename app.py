@@ -51,22 +51,12 @@ def handle_share_link(encoded_id):
     """
     Handle UniTune share links: /s/{encodedId}
     
-    Supports two formats:
-    1. NEW: Base64-encoded platform:type:id (e.g., /s/dGlkYWw6dHJhY2s6MjU4NzM1NDEw)
-    2. LEGACY: URL-encoded full URL (e.g., /s/https%3A%2F%2Ftidal.com%2Ftrack%2F258735410)
+    Format: Base64-encoded platform:type:id (e.g., /s/dGlkYWw6dHJhY2s6MjU4NzM1NDEw)
     
     Returns JSON response. Frontend (Cloudflare Worker) handles HTML rendering.
     """
     try:
-        # Check if this is a legacy format (URL-encoded full URL)
-        if LinkEncoder.is_legacy_format(encoded_id):
-            # Legacy format: decode URL and process normally
-            decoded_url = LinkEncoder.decode_legacy(encoded_id)
-            if not decoded_url:
-                return ResponseBuilder.build_error_response('Invalid legacy share link format', 400)
-            return _process_music_link(decoded_url)
-        
-        # New format: decode base64 identifier
+        # Decode base64 identifier
         decoded = LinkEncoder.decode(encoded_id)
         if not decoded:
             return ResponseBuilder.build_error_response('Invalid share link format', 400)
@@ -74,7 +64,6 @@ def handle_share_link(encoded_id):
         platform, link_type, track_id = decoded
         
         # Reconstruct URL for processing
-        # This allows us to reuse the existing _process_music_link logic
         platform_urls = {
             'spotify': f'https://open.spotify.com/track/{track_id}',
             'tidal': f'https://tidal.com/track/{track_id}',
@@ -118,6 +107,8 @@ def _process_music_link(music_url):
     parsed = URLParser.parse(music_url)
     
     if not parsed:
+        # Log the failed URL for debugging
+        print(f"[ERROR] Failed to parse URL: {music_url}")
         return ResponseBuilder.build_error_response(
             'Unsupported URL format. Supported platforms: Spotify, Apple Music, YouTube, Deezer, TIDAL, Amazon Music',
             400
@@ -136,6 +127,12 @@ def _process_music_link(music_url):
         if not metadata:
             # Fallback to TIDAL API if scraping fails
             metadata = tidal_extractor.get_track_metadata(track_id)
+        if not metadata:
+            print(f"[ERROR] Tidal track not found: {track_id}")
+            return ResponseBuilder.build_error_response(
+                'TIDAL track not found. The track might be unavailable or the ID is incorrect.',
+                404
+            )
     elif platform == 'appleMusic':
         # Try web scraping for Apple Music
         metadata = web_scraper.scrape_apple_music(track_id)

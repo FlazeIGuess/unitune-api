@@ -10,7 +10,7 @@ class URLParser:
     # URL patterns for each platform
     PATTERNS = {
         'spotify': [
-            r'open\.spotify\.com/(?:intl-[a-z]+/)?track/([a-zA-Z0-9]+)',
+            r'open\.spotify\.com/(?:intl-[a-z]+/)?track/([a-zA-Z0-9]+)(?:\?.*)?',  # Ignore query params
             r'spotify:track:([a-zA-Z0-9]+)'
         ],
         'appleMusic': [
@@ -20,16 +20,18 @@ class URLParser:
         'youtube': [
             r'youtube\.com/watch\?v=([a-zA-Z0-9_-]+)',
             r'youtu\.be/([a-zA-Z0-9_-]+)',
-            r'music\.youtube\.com/watch\?v=([a-zA-Z0-9_-]+)'
+            r'music\.youtube\.com/watch\?v=([a-zA-Z0-9_-]+)',
+            r'youtube\.com/shorts/([a-zA-Z0-9_-]+)'  # Support YouTube Shorts
         ],
         'deezer': [
-            r'deezer\.com/track/(\d+)',
-            r'deezer\.com/.+/track/(\d+)'
+            r'deezer\.com/(?:[a-z]{2}/)?track/(\d+)',  # Support country codes
+            r'deezer\.page\.link/.*track[=/](\d+)'  # Support deep links
         ],
         'tidal': [
-            r'tidal\.com/track/(\d+)',
+            r'tidal\.com/track/(\d+)(?:/[ua](?:Log)?)?',  # Matches /track/123, /track/123/u, /track/123/uLog
             r'tidal\.com/browse/track/(\d+)',
-            r'listen\.tidal\.com/track/(\d+)'
+            r'listen\.tidal\.com/track/(\d+)(?:/[ua](?:Log)?)?',
+            r'tidal\.com/browse/track/(\d+)/u'  # Explicit /u support
         ],
         'amazonMusic': [
             r'music\.amazon\.com/albums/([A-Z0-9]+)',
