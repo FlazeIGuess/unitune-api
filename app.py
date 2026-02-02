@@ -41,7 +41,7 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'ok',
-        'version': '1.0.0',
+        'version': '1.1.0',
         'spotify_configured': bool(Config.SPOTIFY_CLIENT_ID),
         'youtube_configured': bool(Config.YOUTUBE_API_KEY)
     })
