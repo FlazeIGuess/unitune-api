@@ -12,6 +12,7 @@ services:
     environment:
       - FLASK_ENV=production
       - LOG_LEVEL=ERROR
+      - DATABASE_URL=postgresql+psycopg2://unitune:unitune@postgres:5432/unitune
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:10000/health"]
       interval: 30s
@@ -22,16 +23,16 @@ services:
     # volumes:
     #   - ./logs:/app/logs
 
-  # Optional: Nginx Reverse Proxy (nur wenn du kein Cloudflare Proxy nutzt)
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: unitune-nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./ssl:/etc/ssl/cloudflare:ro
-  #   depends_on:
-  #     - unitune-api
+  postgres:
+    image: postgres:16-alpine
+    container_name: unitune-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=unitune
+      - POSTGRES_USER=unitune
+      - POSTGRES_PASSWORD=unitune
+    volumes:
+      - unitune-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  unitune-postgres-data:
