@@ -20,6 +20,7 @@ from searchers.tidal import TidalSearcher
 from searchers.apple_music import AppleMusicSearcher
 from searchers.amazon_music import AmazonMusicSearcher
 from db import Base, engine, get_session
+from sqlalchemy.exc import OperationalError
 from models import Playlist
 
 # Initialize Flask app
@@ -40,7 +41,11 @@ tidal_searcher = TidalSearcher()  # Uses its own TidalExtractor instance
 apple_music_searcher = AppleMusicSearcher()
 amazon_music_searcher = AmazonMusicSearcher()
 
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine, checkfirst=True)
+except OperationalError as e:
+    if 'already exists' not in str(e).lower():
+        raise
 
 @app.route('/health', methods=['GET'])
 def health_check():
