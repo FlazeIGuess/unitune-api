@@ -6,3 +6,5 @@ google-api-python-client==2.108.0
 python-dotenv==1.0.0
 gunicorn==21.2.0
 beautifulsoup4==4.12.3
+sqlalchemy==2.0.30
+psycopg2-binary==2.9.9

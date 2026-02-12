@@ -29,6 +29,10 @@ class Config:
     
     # Cache
     CACHE_TTL = 86400  # 24 hours
+
+    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///unitune_playlists.db')
+    PLAYLIST_MAX_TRACKS = int(os.getenv('PLAYLIST_MAX_TRACKS', 500))
+    PLAYLIST_TTL_DAYS = int(os.getenv('PLAYLIST_TTL_DAYS', 180))
     
     # Platform URLs
     PLATFORM_URLS = {
