@@ -650,8 +650,42 @@ def _process_album(platform: str, album_id: str):
             if spotify_result.get('thumbnail'):
                 metadata['thumbnail'] = spotify_result['thumbnail']
     
-    # TODO: Search on other platforms (YouTube, Deezer, Apple Music, Amazon Music)
-    # For now, albums are primarily supported on Spotify and Tidal
+    # Search on other platforms using generic search
+    from urllib.parse import quote
+    
+    # YouTube Music - Search for album
+    youtube_search_query = quote(f"{artist} {album_title}")
+    links['youtubeMusic'] = {
+        'url': f"https://music.youtube.com/search?q={youtube_search_query}",
+        'entityUniqueId': f"YOUTUBEMUSIC::ALBUM::search"
+    }
+    
+    # YouTube - Search for album
+    links['youtube'] = {
+        'url': f"https://www.youtube.com/results?search_query={youtube_search_query}",
+        'entityUniqueId': f"YOUTUBE::ALBUM::search"
+    }
+    
+    # Deezer - Search for album
+    deezer_search_query = quote(f"{artist} {album_title}")
+    links['deezer'] = {
+        'url': f"https://www.deezer.com/search/{deezer_search_query}/album",
+        'entityUniqueId': f"DEEZER::ALBUM::search"
+    }
+    
+    # Apple Music - Search for album
+    apple_search_query = quote(f"{artist} {album_title}")
+    links['appleMusic'] = {
+        'url': f"https://music.apple.com/search?term={apple_search_query}",
+        'entityUniqueId': f"APPLEMUSIC::ALBUM::search"
+    }
+    
+    # Amazon Music - Search for album
+    amazon_search_query = quote(f"{artist} {album_title}")
+    links['amazonMusic'] = {
+        'url': f"https://music.amazon.com/search/{amazon_search_query}",
+        'entityUniqueId': f"AMAZONMUSIC::ALBUM::search"
+    }
     
     # Build Odesli-compatible response
     response = ResponseBuilder.build_response(metadata, links, platform, ContentType.ALBUM)
@@ -706,8 +740,43 @@ def _process_artist(platform: str, artist_id: str):
             if spotify_result.get('thumbnail'):
                 metadata['thumbnail'] = spotify_result['thumbnail']
     
-    # TODO: Search on other platforms (YouTube, Deezer, Apple Music, Amazon Music)
-    # For now, artists are primarily supported on Spotify and Tidal
+    # Search on other platforms using generic search
+    # Most platforms don't have dedicated artist pages, so we create search links
+    
+    # YouTube - Search for artist channel
+    from urllib.parse import quote
+    youtube_search_query = quote(f"{artist_name} official")
+    links['youtube'] = {
+        'url': f"https://www.youtube.com/results?search_query={youtube_search_query}",
+        'entityUniqueId': f"YOUTUBE::ARTIST::search"
+    }
+    
+    # YouTube Music - Search for artist
+    links['youtubeMusic'] = {
+        'url': f"https://music.youtube.com/search?q={youtube_search_query}",
+        'entityUniqueId': f"YOUTUBEMUSIC::ARTIST::search"
+    }
+    
+    # Deezer - Search for artist
+    deezer_search_query = quote(artist_name)
+    links['deezer'] = {
+        'url': f"https://www.deezer.com/search/{deezer_search_query}/artist",
+        'entityUniqueId': f"DEEZER::ARTIST::search"
+    }
+    
+    # Apple Music - Search for artist
+    apple_search_query = quote(artist_name)
+    links['appleMusic'] = {
+        'url': f"https://music.apple.com/search?term={apple_search_query}",
+        'entityUniqueId': f"APPLEMUSIC::ARTIST::search"
+    }
+    
+    # Amazon Music - Search for artist
+    amazon_search_query = quote(artist_name)
+    links['amazonMusic'] = {
+        'url': f"https://music.amazon.com/search/{amazon_search_query}",
+        'entityUniqueId': f"AMAZONMUSIC::ARTIST::search"
+    }
     
     # Build Odesli-compatible response
     response = ResponseBuilder.build_response(metadata, links, platform, ContentType.ARTIST)

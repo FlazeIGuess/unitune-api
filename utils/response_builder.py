@@ -70,8 +70,10 @@ class ResponseBuilder:
                 'totalTracks': metadata.get('total_tracks'),
             })
         elif content_type == ContentType.ARTIST:
+            artist_name = metadata.get('name') or metadata.get('artist', 'Unknown Artist')
             entity.update({
-                'name': metadata.get('name') or metadata.get('artist', 'Unknown Artist'),
+                'name': artist_name,
+                'artistName': artist_name,  # Also set artistName for compatibility
                 'thumbnailUrl': metadata.get('thumbnail'),
                 'thumbnailWidth': 640,
                 'thumbnailHeight': 640,
