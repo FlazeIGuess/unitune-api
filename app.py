@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import secrets
 from flask_cors import CORS
 from config import Config
-from utils.url_parser import URLParser
+from utils.url_parser import URLParser, ContentType
 from utils.response_builder import ResponseBuilder
 from utils.link_encoder import LinkEncoder
 from extractors.spotify import SpotifyExtractor
@@ -64,6 +64,7 @@ def handle_share_link(encoded_id):
     Handle UniTune share links: /s/{encodedId}
     
     Format: Base64-encoded platform:type:id (e.g., /s/dGlkYWw6dHJhY2s6MjU4NzM1NDEw)
+    Supports tracks, albums, and artists
     
     Returns JSON response. Frontend (Cloudflare Worker) handles HTML rendering.
     """
@@ -73,22 +74,58 @@ def handle_share_link(encoded_id):
         if not decoded:
             return ResponseBuilder.build_error_response('Invalid share link format', 400)
         
-        platform, link_type, track_id = decoded
+        platform, content_type_str, content_id = decoded
         
-        # Reconstruct URL for processing
+        # Map content type string to ContentType enum
+        content_type_map = {
+            'track': ContentType.TRACK,
+            'album': ContentType.ALBUM,
+            'artist': ContentType.ARTIST,
+            'playlist': ContentType.PLAYLIST
+        }
+        content_type = content_type_map.get(content_type_str, ContentType.TRACK)
+        
+        # Reconstruct URL for processing based on content type
         platform_urls = {
-            'spotify': f'https://open.spotify.com/track/{track_id}',
-            'tidal': f'https://tidal.com/track/{track_id}',
-            'appleMusic': f'https://music.apple.com/song/{track_id}',
-            'youtube': f'https://youtube.com/watch?v={track_id}',
-            'youtubeMusic': f'https://music.youtube.com/watch?v={track_id}',
-            'deezer': f'https://deezer.com/track/{track_id}',
-            'amazonMusic': f'https://music.amazon.com/tracks/{track_id}'
+            'spotify': {
+                ContentType.TRACK: f'https://open.spotify.com/track/{content_id}',
+                ContentType.ALBUM: f'https://open.spotify.com/album/{content_id}',
+                ContentType.ARTIST: f'https://open.spotify.com/artist/{content_id}',
+            },
+            'tidal': {
+                ContentType.TRACK: f'https://tidal.com/track/{content_id}',
+                ContentType.ALBUM: f'https://tidal.com/album/{content_id}',
+                ContentType.ARTIST: f'https://tidal.com/artist/{content_id}',
+            },
+            'appleMusic': {
+                ContentType.TRACK: f'https://music.apple.com/song/{content_id}',
+                ContentType.ALBUM: f'https://music.apple.com/album/{content_id}',
+                ContentType.ARTIST: f'https://music.apple.com/artist/{content_id}',
+            },
+            'youtube': {
+                ContentType.TRACK: f'https://youtube.com/watch?v={content_id}',
+                ContentType.ARTIST: f'https://youtube.com/@{content_id}',
+            },
+            'youtubeMusic': {
+                ContentType.TRACK: f'https://music.youtube.com/watch?v={content_id}',
+            },
+            'deezer': {
+                ContentType.TRACK: f'https://deezer.com/track/{content_id}',
+                ContentType.ALBUM: f'https://deezer.com/album/{content_id}',
+                ContentType.ARTIST: f'https://deezer.com/artist/{content_id}',
+            },
+            'amazonMusic': {
+                ContentType.TRACK: f'https://music.amazon.com/tracks/{content_id}',
+                ContentType.ALBUM: f'https://music.amazon.com/albums/{content_id}',
+                ContentType.ARTIST: f'https://music.amazon.com/artists/{content_id}',
+            }
         }
         
-        reconstructed_url = platform_urls.get(platform)
+        platform_type_urls = platform_urls.get(platform, {})
+        reconstructed_url = platform_type_urls.get(content_type)
+        
         if not reconstructed_url:
-            return ResponseBuilder.build_error_response(f'Unsupported platform: {platform}', 400)
+            return ResponseBuilder.build_error_response(f'Unsupported platform or content type: {platform}/{content_type_str}', 400)
         
         # Process the reconstructed URL
         return _process_music_link(reconstructed_url)
@@ -391,9 +428,10 @@ def _process_music_link(music_url):
     """
     Internal function to process a music link and return all platform links
     Used by both /v1-alpha.1/links and /s/{encoded_url} endpoints
+    Supports tracks, albums, and artists
     """
-    # Parse URL to get platform and track ID
-    parsed = URLParser.parse(music_url)
+    # Parse URL to get platform, content ID, and content type
+    parsed = URLParser.parse_with_type(music_url)
     
     if not parsed:
         # Log the failed URL for debugging
@@ -403,8 +441,24 @@ def _process_music_link(music_url):
             400
         )
     
-    platform, track_id = parsed
+    platform, content_id, content_type = parsed
     
+    # Route to appropriate processor based on content type
+    if content_type == ContentType.TRACK:
+        return _process_track(platform, content_id)
+    elif content_type == ContentType.ALBUM:
+        return _process_album(platform, content_id)
+    elif content_type == ContentType.ARTIST:
+        return _process_artist(platform, content_id)
+    else:
+        return ResponseBuilder.build_error_response(
+            f'Unsupported content type: {content_type.value}',
+            400
+        )
+
+
+def _process_track(platform: str, track_id: str):
+    """Process a track URL and return all platform links"""
     # Extract metadata from source platform
     metadata = None
     
@@ -543,7 +597,106 @@ def _process_music_link(music_url):
         }
     
     # Build Odesli-compatible response
-    response = ResponseBuilder.build_response(metadata, links, platform)
+    response = ResponseBuilder.build_response(metadata, links, platform, ContentType.TRACK)
+    
+    return jsonify(response)
+
+
+def _process_album(platform: str, album_id: str):
+    """Process an album URL and return all platform links"""
+    # Extract metadata from source platform
+    metadata = None
+    
+    if platform == 'spotify':
+        metadata = spotify_extractor.get_album_metadata(album_id)
+    # TODO: Add other platforms (Tidal, Apple Music, Deezer, etc.)
+    
+    if not metadata:
+        return ResponseBuilder.build_error_response(
+            'Album not found. Please check the URL and try again.',
+            404
+        )
+    
+    # Get album info
+    artist = metadata['artist']
+    album_title = metadata.get('album') or metadata.get('title')
+    
+    # Search on all platforms
+    links = {}
+    
+    # Always include source platform
+    if platform == 'spotify':
+        links['spotify'] = {
+            'url': metadata['url'],
+            'entityUniqueId': f"SPOTIFY::ALBUM::{metadata['id']}"
+        }
+    
+    # Search on Spotify if not source (for consistent cover art)
+    if platform != 'spotify':
+        spotify_result = spotify_extractor.search_album(artist, album_title)
+        if spotify_result:
+            links['spotify'] = {
+                'url': spotify_result['url'],
+                'entityUniqueId': f"SPOTIFY::ALBUM::{spotify_result['id']}"
+            }
+            # Use Spotify's cover art
+            if spotify_result.get('thumbnail'):
+                metadata['thumbnail'] = spotify_result['thumbnail']
+    
+    # TODO: Search on other platforms (YouTube, Deezer, TIDAL, Apple Music, Amazon Music)
+    # For now, albums are primarily supported on Spotify
+    
+    # Build Odesli-compatible response
+    response = ResponseBuilder.build_response(metadata, links, platform, ContentType.ALBUM)
+    
+    return jsonify(response)
+
+
+def _process_artist(platform: str, artist_id: str):
+    """Process an artist URL and return all platform links"""
+    # Extract metadata from source platform
+    metadata = None
+    
+    if platform == 'spotify':
+        metadata = spotify_extractor.get_artist_metadata(artist_id)
+    # TODO: Add other platforms (Tidal, Apple Music, Deezer, etc.)
+    
+    if not metadata:
+        return ResponseBuilder.build_error_response(
+            'Artist not found. Please check the URL and try again.',
+            404
+        )
+    
+    # Get artist name
+    artist_name = metadata.get('name') or metadata.get('artist')
+    
+    # Search on all platforms
+    links = {}
+    
+    # Always include source platform
+    if platform == 'spotify':
+        links['spotify'] = {
+            'url': metadata['url'],
+            'entityUniqueId': f"SPOTIFY::ARTIST::{metadata['id']}"
+        }
+    
+    # Search on Spotify if not source
+    if platform != 'spotify':
+        spotify_result = spotify_extractor.search_artist(artist_name)
+        if spotify_result:
+            links['spotify'] = {
+                'url': spotify_result['url'],
+                'entityUniqueId': f"SPOTIFY::ARTIST::{spotify_result['id']}"
+            }
+            # Use Spotify's artist image
+            if spotify_result.get('thumbnail'):
+                metadata['thumbnail'] = spotify_result['thumbnail']
+    
+    # TODO: Search on other platforms (YouTube, Deezer, TIDAL, Apple Music, Amazon Music)
+    # For now, artists are primarily supported on Spotify
+    
+    # Build Odesli-compatible response
+    response = ResponseBuilder.build_response(metadata, links, platform, ContentType.ARTIST)
     
     return jsonify(response)
 

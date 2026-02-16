@@ -16,44 +16,65 @@ class ContentType(Enum):
 class URLParser:
     """Parse music URLs to extract platform and track ID"""
     
-    # URL patterns for each platform
+    # URL patterns for each platform with content type
+    # Format: (pattern, content_type)
     PATTERNS = {
         'spotify': [
-            r'open\.spotify\.com/(?:intl-[a-z]+/)?track/([a-zA-Z0-9]+)(?:\?.*)?',
-            r'spotify:track:([a-zA-Z0-9]+)'
+            (r'open\.spotify\.com/(?:intl-[a-z]+/)?track/([a-zA-Z0-9]+)(?:\?.*)?', ContentType.TRACK),
+            (r'spotify:track:([a-zA-Z0-9]+)', ContentType.TRACK),
+            (r'open\.spotify\.com/(?:intl-[a-z]+/)?album/([a-zA-Z0-9]+)(?:\?.*)?', ContentType.ALBUM),
+            (r'spotify:album:([a-zA-Z0-9]+)', ContentType.ALBUM),
+            (r'open\.spotify\.com/(?:intl-[a-z]+/)?artist/([a-zA-Z0-9]+)(?:\?.*)?', ContentType.ARTIST),
+            (r'spotify:artist:([a-zA-Z0-9]+)', ContentType.ARTIST),
         ],
         'appleMusic': [
-            r'music\.apple\.com/.+/album/.+\?i=(\d+)',
-            r'music\.apple\.com/.+/song/.+/(\d+)'
+            (r'music\.apple\.com/.+/album/.+\?i=(\d+)', ContentType.TRACK),
+            (r'music\.apple\.com/.+/song/.+/(\d+)', ContentType.TRACK),
+            (r'music\.apple\.com/.+/album/[^/]+/(\d+)(?:\?.*)?$', ContentType.ALBUM),
+            (r'music\.apple\.com/.+/artist/[^/]+/(\d+)(?:\?.*)?', ContentType.ARTIST),
         ],
         'youtube': [
-            r'youtube\.com/watch\?v=([a-zA-Z0-9_-]+)',
-            r'youtu\.be/([a-zA-Z0-9_-]+)',
-            r'music\.youtube\.com/watch\?v=([a-zA-Z0-9_-]+)',
-            r'youtube\.com/shorts/([a-zA-Z0-9_-]+)'
+            (r'youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', ContentType.TRACK),
+            (r'youtu\.be/([a-zA-Z0-9_-]+)', ContentType.TRACK),
+            (r'music\.youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', ContentType.TRACK),
+            (r'youtube\.com/shorts/([a-zA-Z0-9_-]+)', ContentType.TRACK),
+            (r'youtube\.com/channel/([a-zA-Z0-9_-]+)', ContentType.ARTIST),
+            (r'youtube\.com/@([a-zA-Z0-9_-]+)', ContentType.ARTIST),
         ],
         'deezer': [
-            r'deezer\.com/(?:[a-z]{2}/)?track/(\d+)',
-            r'deezer\.page\.link/.*track[=/](\d+)'
+            (r'deezer\.com/(?:[a-z]{2}/)?track/(\d+)', ContentType.TRACK),
+            (r'deezer\.page\.link/.*track[=/](\d+)', ContentType.TRACK),
+            (r'deezer\.com/(?:[a-z]{2}/)?album/(\d+)', ContentType.ALBUM),
+            (r'deezer\.page\.link/.*album[=/](\d+)', ContentType.ALBUM),
+            (r'deezer\.com/(?:[a-z]{2}/)?artist/(\d+)', ContentType.ARTIST),
+            (r'deezer\.page\.link/.*artist[=/](\d+)', ContentType.ARTIST),
         ],
         'tidal': [
-            r'tidal\.com/track/(\d+)(?:/[ua](?:Log)?)?',
-            r'tidal\.com/browse/track/(\d+)',
-            r'listen\.tidal\.com/track/(\d+)(?:/[ua](?:Log)?)?',
-            r'tidal\.com/browse/track/(\d+)/u'
+            (r'tidal\.com/track/(\d+)(?:/[ua](?:Log)?)?', ContentType.TRACK),
+            (r'tidal\.com/browse/track/(\d+)', ContentType.TRACK),
+            (r'listen\.tidal\.com/track/(\d+)(?:/[ua](?:Log)?)?', ContentType.TRACK),
+            (r'tidal\.com/browse/track/(\d+)/u', ContentType.TRACK),
+            (r'tidal\.com/album/(\d+)(?:/[ua](?:Log)?)?', ContentType.ALBUM),
+            (r'tidal\.com/browse/album/(\d+)', ContentType.ALBUM),
+            (r'listen\.tidal\.com/album/(\d+)(?:/[ua](?:Log)?)?', ContentType.ALBUM),
+            (r'tidal\.com/artist/(\d+)(?:/[ua](?:Log)?)?', ContentType.ARTIST),
+            (r'tidal\.com/browse/artist/(\d+)', ContentType.ARTIST),
+            (r'listen\.tidal\.com/artist/(\d+)(?:/[ua](?:Log)?)?', ContentType.ARTIST),
         ],
         'amazonMusic': [
-            r'music\.amazon\.com/albums/([A-Z0-9]+)',
-            r'music\.amazon\.com/tracks/([A-Z0-9]+)',
-            r'amazon\.com/music/player/albums/([A-Z0-9]+)',
-            r'amazon\.com/music/player/tracks/([A-Z0-9]+)'
+            (r'music\.amazon\.com/tracks/([A-Z0-9]+)', ContentType.TRACK),
+            (r'amazon\.com/music/player/tracks/([A-Z0-9]+)', ContentType.TRACK),
+            (r'music\.amazon\.com/albums/([A-Z0-9]+)', ContentType.ALBUM),
+            (r'amazon\.com/music/player/albums/([A-Z0-9]+)', ContentType.ALBUM),
+            (r'music\.amazon\.com/artists/([A-Z0-9]+)', ContentType.ARTIST),
+            (r'amazon\.com/music/player/artists/([A-Z0-9]+)', ContentType.ARTIST),
         ]
     }
     
     @classmethod
     def parse(cls, url: str) -> Optional[Tuple[str, str]]:
         """
-        Parse music URL and extract platform + track ID
+        Parse music URL and extract platform + track ID (backward compatible)
         
         Args:
             url: Music URL from any supported platform
@@ -61,17 +82,35 @@ class URLParser:
         Returns:
             Tuple of (platform, track_id) or None if not recognized
         """
+        result = cls.parse_with_type(url)
+        if result:
+            platform, content_id, _ = result
+            return (platform, content_id)
+        return None
+    
+    @classmethod
+    def parse_with_type(cls, url: str) -> Optional[Tuple[str, str, ContentType]]:
+        """
+        Parse music URL and extract platform + content ID + content type
+        
+        Args:
+            url: Music URL from any supported platform
+            
+        Returns:
+            Tuple of (platform, content_id, content_type) or None if not recognized
+        """
         if not url:
             return None
         
         url = url.strip()
         
         for platform, patterns in cls.PATTERNS.items():
-            for pattern in patterns:
+            for pattern_tuple in patterns:
+                pattern, content_type = pattern_tuple
                 match = re.search(pattern, url, re.IGNORECASE)
                 if match:
-                    track_id = match.group(1)
-                    return (platform, track_id)
+                    content_id = match.group(1)
+                    return (platform, content_id, content_type)
         
         return None
     

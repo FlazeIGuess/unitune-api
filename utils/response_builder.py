@@ -2,6 +2,7 @@
 Response Builder - Build Odesli-compatible JSON responses
 """
 from typing import Dict, Any, Optional
+from utils.url_parser import ContentType
 
 class ResponseBuilder:
     """Build Odesli-compatible API responses"""
@@ -10,36 +11,73 @@ class ResponseBuilder:
     def build_response(
         metadata: Dict[str, Any],
         links: Dict[str, Dict[str, Any]],
-        source_platform: str
+        source_platform: str,
+        content_type: ContentType = ContentType.TRACK
     ) -> Dict[str, Any]:
         """
         Build Odesli-compatible response
         
         Args:
-            metadata: Track metadata (title, artist, etc.)
+            metadata: Content metadata (title, artist, etc.)
             links: Links to all platforms
             source_platform: Original platform
+            content_type: Type of content (track, album, artist)
             
         Returns:
             Odesli-compatible JSON response
         """
         from utils.link_encoder import LinkEncoder
         
-        # Build entity unique ID
-        entity_id = f"{source_platform.upper()}::TRACK::{metadata.get('id', 'unknown')}"
+        # Map content type to entity type string
+        type_map = {
+            ContentType.TRACK: 'song',
+            ContentType.ALBUM: 'album',
+            ContentType.ARTIST: 'artist',
+            ContentType.PLAYLIST: 'playlist',
+            ContentType.UNKNOWN: 'song'
+        }
+        entity_type = type_map.get(content_type, 'song')
         
-        # Build entity
+        # Build entity unique ID
+        content_type_upper = content_type.value.upper()
+        entity_id = f"{source_platform.upper()}::{content_type_upper}::{metadata.get('id', 'unknown')}"
+        
+        # Build entity based on content type
         entity = {
             'id': metadata.get('id'),
-            'type': 'song',
-            'title': metadata.get('title', 'Unknown Title'),
-            'artistName': metadata.get('artist', 'Unknown Artist'),
-            'thumbnailUrl': metadata.get('thumbnail'),
-            'thumbnailWidth': 640,
-            'thumbnailHeight': 640,
+            'type': entity_type,
             'apiProvider': source_platform,
             'platforms': list(links.keys())
         }
+        
+        # Add type-specific fields
+        if content_type == ContentType.TRACK:
+            entity.update({
+                'title': metadata.get('title', 'Unknown Title'),
+                'artistName': metadata.get('artist', 'Unknown Artist'),
+                'thumbnailUrl': metadata.get('thumbnail'),
+                'thumbnailWidth': 640,
+                'thumbnailHeight': 640,
+            })
+        elif content_type == ContentType.ALBUM:
+            entity.update({
+                'title': metadata.get('album') or metadata.get('title', 'Unknown Album'),
+                'artistName': metadata.get('artist', 'Unknown Artist'),
+                'thumbnailUrl': metadata.get('thumbnail'),
+                'thumbnailWidth': 640,
+                'thumbnailHeight': 640,
+                'releaseDate': metadata.get('release_date'),
+                'totalTracks': metadata.get('total_tracks'),
+            })
+        elif content_type == ContentType.ARTIST:
+            entity.update({
+                'name': metadata.get('name') or metadata.get('artist', 'Unknown Artist'),
+                'thumbnailUrl': metadata.get('thumbnail'),
+                'thumbnailWidth': 640,
+                'thumbnailHeight': 640,
+                'genres': metadata.get('genres', []),
+                'followers': metadata.get('followers'),
+            })
         
         # Build links by platform
         links_by_platform = {}
@@ -54,8 +92,8 @@ class ResponseBuilder:
                 links_by_platform[platform]['nativeAppUriMobile'] = link_data['nativeAppUri']
         
         # Generate new-format share URL (base64-encoded)
-        track_id = metadata.get('id', 'unknown')
-        encoded_id = LinkEncoder.encode(source_platform, track_id, 'track')
+        content_id = metadata.get('id', 'unknown')
+        encoded_id = LinkEncoder.encode(source_platform, content_id, content_type)
         page_url = f"https://unitune.art/s/{encoded_id}"
         
         # Build full response
