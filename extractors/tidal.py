@@ -358,3 +358,149 @@ class TidalExtractor:
             pass
         
         return None
+
+    def get_artist_metadata(self, artist_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get artist metadata from TIDAL using artist ID
+        
+        Args:
+            artist_id: TIDAL artist ID
+            
+        Returns:
+            Dictionary with artist metadata
+        """
+        # Ensure we have a valid token
+        if not self.access_token:
+            if not self._get_access_token():
+                return None
+        
+        try:
+            # v2 API endpoint for artists
+            url = f"{self.BASE_URL}/v2/artists/{artist_id}"
+            
+            headers = {
+                'Authorization': f'{self.token_type} {self.access_token}',
+                'Accept': 'application/vnd.api+json'
+            }
+            
+            params = {
+                'countryCode': 'US'
+            }
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            
+            if response.status_code == 401:
+                # Token expired, refresh and retry
+                if self._get_access_token():
+                    headers['Authorization'] = f'{self.token_type} {self.access_token}'
+                    response = requests.get(url, headers=headers, params=params, timeout=10)
+            
+            if response.ok:
+                data = response.json()
+                resource = data.get('data', {})
+                attributes = resource.get('attributes', {})
+                
+                # Extract metadata
+                name = attributes.get('name', '')
+                
+                # Get artist image
+                thumbnail_url = None
+                image_cover = attributes.get('imageCover', [])
+                if image_cover:
+                    thumbnail_url = image_cover[-1].get('url') if image_cover else None
+                
+                return {
+                    'id': artist_id,
+                    'name': name,
+                    'artist': name,
+                    'thumbnail': thumbnail_url,
+                    'url': f"https://tidal.com/browse/artist/{artist_id}",
+                    'platform': 'tidal',
+                    'type': 'artist'
+                }
+            else:
+                print(f"TIDAL Artist API error: {response.status_code} - {response.text[:200]}")
+                
+        except Exception as e:
+            print(f"Error getting TIDAL artist: {e}")
+        
+        return None
+    
+    def get_album_metadata(self, album_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get album metadata from TIDAL using album ID
+        
+        Args:
+            album_id: TIDAL album ID
+            
+        Returns:
+            Dictionary with album metadata
+        """
+        # Ensure we have a valid token
+        if not self.access_token:
+            if not self._get_access_token():
+                return None
+        
+        try:
+            # v2 API endpoint for albums
+            url = f"{self.BASE_URL}/v2/albums/{album_id}"
+            
+            headers = {
+                'Authorization': f'{self.token_type} {self.access_token}',
+                'Accept': 'application/vnd.api+json'
+            }
+            
+            params = {
+                'countryCode': 'US',
+                'include': 'artists'
+            }
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            
+            if response.status_code == 401:
+                # Token expired, refresh and retry
+                if self._get_access_token():
+                    headers['Authorization'] = f'{self.token_type} {self.access_token}'
+                    response = requests.get(url, headers=headers, params=params, timeout=10)
+            
+            if response.ok:
+                data = response.json()
+                resource = data.get('data', {})
+                attributes = resource.get('attributes', {})
+                
+                # Extract metadata
+                title = attributes.get('title', '')
+                artist_name = ''
+                
+                # Get artist from included data
+                included = data.get('included', [])
+                for item in included:
+                    if item.get('type') == 'artists':
+                        artist_name = item.get('attributes', {}).get('name', '')
+                        break
+                
+                # Get album art
+                thumbnail_url = None
+                image_cover = attributes.get('imageCover', [])
+                if image_cover:
+                    thumbnail_url = image_cover[-1].get('url') if image_cover else None
+                
+                return {
+                    'id': album_id,
+                    'title': title,
+                    'album': title,
+                    'artist': artist_name,
+                    'thumbnail': thumbnail_url,
+                    'url': f"https://tidal.com/browse/album/{album_id}",
+                    'release_date': attributes.get('releaseDate'),
+                    'total_tracks': attributes.get('numberOfTracks'),
+                    'platform': 'tidal',
+                    'type': 'album'
+                }
+            else:
+                print(f"TIDAL Album API error: {response.status_code} - {response.text[:200]}")
+                
+        except Exception as e:
+            print(f"Error getting TIDAL album: {e}")
+        
+        return None

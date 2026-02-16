@@ -609,7 +609,9 @@ def _process_album(platform: str, album_id: str):
     
     if platform == 'spotify':
         metadata = spotify_extractor.get_album_metadata(album_id)
-    # TODO: Add other platforms (Tidal, Apple Music, Deezer, etc.)
+    elif platform == 'tidal':
+        metadata = tidal_extractor.get_album_metadata(album_id)
+    # TODO: Add other platforms (Apple Music, Deezer, etc.)
     
     if not metadata:
         return ResponseBuilder.build_error_response(
@@ -630,6 +632,11 @@ def _process_album(platform: str, album_id: str):
             'url': metadata['url'],
             'entityUniqueId': f"SPOTIFY::ALBUM::{metadata['id']}"
         }
+    elif platform == 'tidal':
+        links['tidal'] = {
+            'url': metadata['url'],
+            'entityUniqueId': f"TIDAL::ALBUM::{metadata['id']}"
+        }
     
     # Search on Spotify if not source (for consistent cover art)
     if platform != 'spotify':
@@ -643,8 +650,8 @@ def _process_album(platform: str, album_id: str):
             if spotify_result.get('thumbnail'):
                 metadata['thumbnail'] = spotify_result['thumbnail']
     
-    # TODO: Search on other platforms (YouTube, Deezer, TIDAL, Apple Music, Amazon Music)
-    # For now, albums are primarily supported on Spotify
+    # TODO: Search on other platforms (YouTube, Deezer, Apple Music, Amazon Music)
+    # For now, albums are primarily supported on Spotify and Tidal
     
     # Build Odesli-compatible response
     response = ResponseBuilder.build_response(metadata, links, platform, ContentType.ALBUM)
@@ -659,7 +666,9 @@ def _process_artist(platform: str, artist_id: str):
     
     if platform == 'spotify':
         metadata = spotify_extractor.get_artist_metadata(artist_id)
-    # TODO: Add other platforms (Tidal, Apple Music, Deezer, etc.)
+    elif platform == 'tidal':
+        metadata = tidal_extractor.get_artist_metadata(artist_id)
+    # TODO: Add other platforms (Apple Music, Deezer, etc.)
     
     if not metadata:
         return ResponseBuilder.build_error_response(
@@ -679,6 +688,11 @@ def _process_artist(platform: str, artist_id: str):
             'url': metadata['url'],
             'entityUniqueId': f"SPOTIFY::ARTIST::{metadata['id']}"
         }
+    elif platform == 'tidal':
+        links['tidal'] = {
+            'url': metadata['url'],
+            'entityUniqueId': f"TIDAL::ARTIST::{metadata['id']}"
+        }
     
     # Search on Spotify if not source
     if platform != 'spotify':
@@ -692,8 +706,8 @@ def _process_artist(platform: str, artist_id: str):
             if spotify_result.get('thumbnail'):
                 metadata['thumbnail'] = spotify_result['thumbnail']
     
-    # TODO: Search on other platforms (YouTube, Deezer, TIDAL, Apple Music, Amazon Music)
-    # For now, artists are primarily supported on Spotify
+    # TODO: Search on other platforms (YouTube, Deezer, Apple Music, Amazon Music)
+    # For now, artists are primarily supported on Spotify and Tidal
     
     # Build Odesli-compatible response
     response = ResponseBuilder.build_response(metadata, links, platform, ContentType.ARTIST)
