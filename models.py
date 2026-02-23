@@ -10,6 +10,7 @@ class Playlist(Base):
     title = Column(String(200), nullable=False)
     description = Column(String(1000), nullable=True)
     tracks = Column(JSON, nullable=False)
+    creator_nickname = Column(String(20), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     expires_at = Column(DateTime, nullable=True)

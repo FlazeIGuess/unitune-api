@@ -336,6 +336,15 @@ def create_playlist():
     title = data.get('title', '').strip()
     description = data.get('description')
     tracks = data.get('tracks', [])
+    creator_nickname = data.get('creatorNickname')
+
+    # Validate and sanitize nickname
+    if creator_nickname:
+        creator_nickname = str(creator_nickname).strip()
+        if len(creator_nickname) > 20:
+            creator_nickname = creator_nickname[:20]
+        if not creator_nickname:
+            creator_nickname = None
 
     if not title:
         return ResponseBuilder.build_error_response('Missing title', 400)
@@ -377,6 +386,7 @@ def create_playlist():
             title=title,
             description=description,
             tracks=normalized_tracks,
+            creator_nickname=creator_nickname,
             expires_at=expires_at
         )
         session.add(playlist)
@@ -404,6 +414,7 @@ def get_playlist(playlist_id):
             'title': playlist.title,
             'description': playlist.description,
             'tracks': playlist.tracks,
+            'creatorNickname': playlist.creator_nickname,
             'createdAt': playlist.created_at.isoformat() + 'Z',
             'updatedAt': playlist.updated_at.isoformat() + 'Z',
             'expiresAt': playlist.expires_at.isoformat() + 'Z' if playlist.expires_at else None
