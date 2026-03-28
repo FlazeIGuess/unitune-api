@@ -1,5 +1,5 @@
 flask==3.0.0
-flask-cors==4.0.0
+flask-cors==6.0.2
 requests==2.31.0
 spotipy==2.23.0
 google-api-python-client==2.108.0
